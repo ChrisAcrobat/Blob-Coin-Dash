@@ -275,7 +275,7 @@ function getMusicGain() {
   if (!ctx) return null;
   if (!musicGainNode) {
     musicGainNode = ctx.createGain();
-    musicGainNode.gain.value = 0.18 * musicVolume;
+    musicGainNode.gain.value = 0.25 * musicVolume;
     musicGainNode.connect(ctx.destination);
   }
   return musicGainNode;
@@ -283,8 +283,8 @@ function getMusicGain() {
 
 function setMusicVolume(value) {
   musicVolume = Math.max(0, Math.min(1, value));
-  if (musicGainNode) musicGainNode.gain.value = 0.18 * musicVolume;
-  if (musicElement) musicElement.volume = 0.18 * musicVolume;
+  if (musicGainNode) musicGainNode.gain.value = 0.25 * musicVolume;
+  if (musicElement) musicElement.volume = 0.25 * musicVolume;
   try {
     localStorage.setItem(VOLUME_STORAGE_KEY_MUSIC, String(musicVolume));
   } catch (_) {}
@@ -330,7 +330,7 @@ function startBackgroundMusic() {
     musicElement = new Audio(src);
     musicElement.loop = true;
     musicElement.preload = "auto";
-    musicElement.volume = 0.18 * musicVolume;
+    musicElement.volume = 0.25 * musicVolume;
   } else if (musicElement.src.indexOf(src) === -1) {
     // Switch track if the theme changed.
     musicElement.pause();
@@ -340,7 +340,7 @@ function startBackgroundMusic() {
     musicElement.src = src;
     musicElement.loop = true;
     musicElement.preload = "auto";
-    musicElement.volume = 0.18 * musicVolume;
+    musicElement.volume = 0.25 * musicVolume;
   }
 
   const playPromise = musicElement.play();
