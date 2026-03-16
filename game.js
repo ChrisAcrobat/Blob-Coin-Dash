@@ -88,6 +88,8 @@ let audioContext;
 let musicGainNode;
 let musicLoopTimeoutId;
 let sfxGainNode;
+let musicElement = null;
+let musicStartListenersAdded = false;
 
 let musicVolume = 1;
 let sfxVolume = 1;
@@ -282,6 +284,7 @@ function getMusicGain() {
 function setMusicVolume(value) {
   musicVolume = Math.max(0, Math.min(1, value));
   if (musicGainNode) musicGainNode.gain.value = 0.18 * musicVolume;
+  if (musicElement) musicElement.volume = 0.18 * musicVolume;
   try {
     localStorage.setItem(VOLUME_STORAGE_KEY_MUSIC, String(musicVolume));
   } catch (_) {}
@@ -296,94 +299,68 @@ function setSfxVolume(value) {
 }
 
 function scheduleBackgroundMusicLoop(startTime) {
-  const ctx = getAudioContext();
-  const gain = getMusicGain();
-  if (!ctx || !gain) return;
+  // Music is now handled via a looping WAV track.
+  // Keeping this function around avoids larger refactors elsewhere.
+  void startTime;
+}
 
-  const bassRoots = [65.4, 98, 65.4, 87.3, 65.4, 98, 65.4, 65.4];
-  const melodyNotes = [
-    329.6, 392, 329.6,
-    261.6, 293.7, 329.6,
-    392, 329.6, 261.6,
-    329.6, 392, 392,
-    261.6, 329.6, 392,
-    329.6, 261.6, 261.6,
-    392, 392, 329.6,
-    261.6, 261.6, 261.6
-  ];
-
-  for (let bar = 0; bar < MUSIC_LOOP_BARS; bar += 1) {
-    const t0 = startTime + bar * BAR;
-    const root = bassRoots[bar];
-    const oscBass1 = ctx.createOscillator();
-    const oscBass2 = ctx.createOscillator();
-    const gainBass = ctx.createGain();
-    oscBass1.type = "square";
-    oscBass2.type = "square";
-    oscBass1.frequency.setValueAtTime(root, t0);
-    oscBass2.frequency.setValueAtTime(root * 1.5, t0);
-    gainBass.gain.setValueAtTime(0, t0);
-    gainBass.gain.linearRampToValueAtTime(0.2, t0 + 0.02);
-    gainBass.gain.linearRampToValueAtTime(0, t0 + BEAT * 2);
-    oscBass1.connect(gainBass);
-    oscBass2.connect(gainBass);
-    gainBass.connect(gain);
-    oscBass1.start(t0);
-    oscBass2.start(t0);
-    oscBass1.stop(t0 + BEAT * 2);
-    oscBass2.stop(t0 + BEAT * 2);
-
-    const t1 = t0 + BEAT;
-    const gainBass2 = ctx.createGain();
-    gainBass2.gain.setValueAtTime(0, t1);
-    gainBass2.gain.linearRampToValueAtTime(0.2, t1 + 0.02);
-    gainBass2.gain.linearRampToValueAtTime(0, t1 + BEAT * 2);
-    const ob1 = ctx.createOscillator();
-    const ob2 = ctx.createOscillator();
-    ob1.type = "square";
-    ob2.type = "square";
-    ob1.frequency.setValueAtTime(root, t1);
-    ob2.frequency.setValueAtTime(root * 1.5, t1);
-    ob1.connect(gainBass2);
-    ob2.connect(gainBass2);
-    gainBass2.connect(gain);
-    ob1.start(t1);
-    ob2.start(t1);
-    ob1.stop(t1 + BEAT * 2);
-    ob2.stop(t1 + BEAT * 2);
+function stopBackgroundMusic() {
+  if (musicLoopTimeoutId) {
+    clearTimeout(musicLoopTimeoutId);
+    musicLoopTimeoutId = null;
   }
-
-  const noteLen = BEAT * 0.95;
-  melodyNotes.forEach((freq, i) => {
-    const bar = Math.floor(i / 3);
-    const beatInBar = i % 3;
-    const t = startTime + bar * BAR + beatInBar * BEAT;
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    osc.type = "square";
-    osc.frequency.setValueAtTime(freq, t);
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.12, t + 0.01);
-    g.gain.linearRampToValueAtTime(0, t + noteLen);
-    osc.connect(g);
-    g.connect(gain);
-    osc.start(t);
-    osc.stop(t + noteLen);
-  });
+  if (musicElement) {
+    try {
+      musicElement.pause();
+      musicElement.currentTime = 0;
+    } catch (_) {}
+  }
 }
 
 function startBackgroundMusic() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  if (ctx.state === "suspended") ctx.resume();
-  let nextStart = ctx.currentTime;
-  scheduleBackgroundMusicLoop(nextStart);
-  function scheduleNext() {
-    nextStart += MUSIC_LOOP_DURATION;
-    scheduleBackgroundMusicLoop(nextStart);
-    musicLoopTimeoutId = setTimeout(scheduleNext, MUSIC_LOOP_DURATION * 1000);
+  // Avoid overlapping music if this is called more than once.
+  stopBackgroundMusic();
+
+  const src =
+    platformTheme === "backrooms"
+      ? "assets/backrooms_theme.wav"
+      : "assets/classic_theme.wav";
+
+  if (!musicElement) {
+    musicElement = new Audio(src);
+    musicElement.loop = true;
+    musicElement.preload = "auto";
+    musicElement.volume = 0.18 * musicVolume;
+  } else if (musicElement.src.indexOf(src) === -1) {
+    // Switch track if the theme changed.
+    musicElement.pause();
+    try {
+      musicElement.currentTime = 0;
+    } catch (_) {}
+    musicElement.src = src;
+    musicElement.loop = true;
+    musicElement.preload = "auto";
+    musicElement.volume = 0.18 * musicVolume;
   }
-  musicLoopTimeoutId = setTimeout(scheduleNext, MUSIC_LOOP_DURATION * 1000);
+
+  const playPromise = musicElement.play();
+  if (playPromise && typeof playPromise.catch === "function") {
+    playPromise.catch(() => {
+      // Autoplay is commonly blocked until a user gesture.
+      if (musicStartListenersAdded) return;
+      musicStartListenersAdded = true;
+
+      const tryStart = () => {
+        musicStartListenersAdded = false;
+        document.removeEventListener("pointerdown", tryStart, { capture: true });
+        document.removeEventListener("keydown", tryStart, { capture: true });
+        startBackgroundMusic();
+      };
+
+      document.addEventListener("pointerdown", tryStart, { capture: true, once: true });
+      document.addEventListener("keydown", tryStart, { capture: true, once: true });
+    });
+  }
 }
 
 function randomInt(min, max) {
@@ -2078,6 +2055,10 @@ resetGame();
     } catch (_) {}
     document.body.classList.toggle("theme-orange", theme === "orange");
     document.body.classList.toggle("theme-backrooms", theme === "backrooms");
+  // Restart background music so the track matches the theme.
+  try {
+    startBackgroundMusic();
+  } catch (_) {}
     const classicBtn = document.getElementById("theme-classic");
     const orangeBtn = document.getElementById("theme-orange");
     const backroomsBtn = document.getElementById("theme-backrooms");
