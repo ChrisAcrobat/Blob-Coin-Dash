@@ -314,7 +314,7 @@ function getMusicGain() {
   if (!ctx) return null;
   if (!musicGainNode) {
     musicGainNode = ctx.createGain();
-    musicGainNode.gain.value = 0.25 * musicVolume;
+    musicGainNode.gain.value = 0.35 * musicVolume;
     musicGainNode.connect(ctx.destination);
   }
   return musicGainNode;
@@ -322,8 +322,8 @@ function getMusicGain() {
 
 function setMusicVolume(value) {
   musicVolume = Math.max(0, Math.min(1, value));
-  if (musicGainNode) musicGainNode.gain.value = 0.25 * musicVolume;
-  if (musicElement) musicElement.volume = 0.25 * musicVolume;
+  if (musicGainNode) musicGainNode.gain.value = 0.35 * musicVolume;
+  if (musicElement) musicElement.volume = 0.35 * musicVolume;
   try {
     localStorage.setItem(VOLUME_STORAGE_KEY_MUSIC, String(musicVolume));
   } catch (_) {}
@@ -369,7 +369,7 @@ function startBackgroundMusic() {
     musicElement = new Audio(src);
     musicElement.loop = true;
     musicElement.preload = "auto";
-    musicElement.volume = 0.25 * musicVolume;
+    musicElement.volume = 0.35 * musicVolume;
   } else if (musicElement.src.indexOf(src) === -1) {
     // Switch track if the theme changed.
     musicElement.pause();
@@ -379,7 +379,7 @@ function startBackgroundMusic() {
     musicElement.src = src;
     musicElement.loop = true;
     musicElement.preload = "auto";
-    musicElement.volume = 0.25 * musicVolume;
+    musicElement.volume = 0.35 * musicVolume;
   }
 
   const playPromise = musicElement.play();
@@ -1895,7 +1895,8 @@ function drawOverlay() {
     ctx.fillText("Paused", WIDTH / 2, 210);
     ctx.font = `24px ${fontFamily}`;
     ctx.fillText("Adjust settings below.", WIDTH / 2, 260);
-    ctx.fillText("Tap ⏸ / ▶ to resume.", WIDTH / 2, 310);
+    const isMobile = window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
+    ctx.fillText(isMobile ? "Tap ▶ to resume." : "Tap ⏸ / ▶ to resume.", WIDTH / 2, 310);
     ctx.textAlign = "start";
     return;
   }
