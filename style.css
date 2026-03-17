@@ -140,10 +140,14 @@ canvas {
     display: block;
   }
 
+  body.game-ended .settings {
+    display: block;
+  }
+
   .mobile-controls {
     display: flex;
     position: fixed;
-    bottom: 34px;
+    bottom: calc(40px + env(safe-area-inset-bottom));
     left: 12px;
     right: 12px;
     justify-content: space-between;
@@ -162,6 +166,20 @@ canvas {
   }
 
   body.game-paused .mobile-controls {
+    justify-content: flex-end;
+  }
+
+  /* When ended (won/lost) on mobile, show settings + keep only Restart visible. */
+  body.game-ended .mobile-controls-left,
+  body.game-ended .mobile-controls-center {
+    display: none;
+  }
+
+  body.game-ended .mobile-controls-right .mobile-btn:not(.mobile-btn-restart) {
+    display: none;
+  }
+
+  body.game-ended .mobile-controls {
     justify-content: flex-end;
   }
 

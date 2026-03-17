@@ -279,6 +279,19 @@ function clearInput() {
   input.crouch = false;
 }
 
+function syncGameUiState() {
+  const paused = gameState === "paused";
+  const ended = gameState === "won" || gameState === "lost";
+  document.body.classList.toggle("game-paused", paused);
+  document.body.classList.toggle("game-ended", ended);
+
+  if (pauseButtonEl) {
+    const isPaused = paused;
+    pauseButtonEl.textContent = isPaused ? "▶" : "⏸";
+    pauseButtonEl.setAttribute("aria-label", isPaused ? "Resume" : "Pause");
+  }
+}
+
 function setPaused(paused) {
   if (paused) {
     if (gameState !== "playing") return;
@@ -289,12 +302,7 @@ function setPaused(paused) {
     gameState = "playing";
   }
 
-  document.body.classList.toggle("game-paused", gameState === "paused");
-  if (pauseButtonEl) {
-    const isPaused = gameState === "paused";
-    pauseButtonEl.textContent = isPaused ? "▶" : "⏸";
-    pauseButtonEl.setAttribute("aria-label", isPaused ? "Resume" : "Pause");
-  }
+  syncGameUiState();
 }
 
 function togglePause() {
@@ -642,6 +650,7 @@ function resetGame() {
   bellAt16Played = false;
   lastDeathCause = null;
   gameState = "playing";
+  syncGameUiState();
   player = {
     x: 0,
     y: 0,
@@ -687,6 +696,7 @@ function killPlayer() {
     lostReason = "deaths";
     playLoseSound();
     gameState = "lost";
+    syncGameUiState();
     return;
   }
 
@@ -857,6 +867,7 @@ function updateCoins(dt) {
   if (collectedCoins === TOTAL_COINS) {
     playWinSound();
     gameState = "won";
+    syncGameUiState();
   }
 }
 
@@ -1927,6 +1938,7 @@ function update(dt) {
       lostReason = "time";
       playLoseSound();
       gameState = "lost";
+      syncGameUiState();
     }
     if (!bellAt16Played && levelTimeRemaining <= 16) {
       bellAt16Played = true;
@@ -2067,11 +2079,7 @@ window.addEventListener("keyup", (event) => {
 
   pauseButtonEl = document.querySelector(".mobile-btn-pause");
   // Sync initial UI state.
-  document.body.classList.toggle("game-paused", gameState === "paused");
-  if (pauseButtonEl) {
-    pauseButtonEl.textContent = gameState === "paused" ? "▶" : "⏸";
-    pauseButtonEl.setAttribute("aria-label", gameState === "paused" ? "Resume" : "Pause");
-  }
+  syncGameUiState();
 })();
 
 resetGame();
